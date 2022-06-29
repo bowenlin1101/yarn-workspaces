@@ -5,13 +5,13 @@
   "license": "MIT",
   "private": true,
   "workspaces": [
-    "signalMarkup", 
+    "signalMarkup",
     "restaurantAPI"
   ],
-  "scripts": {    
-    "runrestaurant": "yarn --cwd restaurantAPI start", 
-    "buildrestaurant": "yarn --cwd restaurantAPI build",   
-    "buildreact": "yarn --cwd signalMarkup build",  
+  "scripts": {
+    "runrestaurant": "yarn --cwd restaurantAPI start",
+    "buildrestaurant": "yarn --cwd restaurantAPI build",
+    "buildreact": "yarn --cwd signalMarkup build",
     "runreact": "yarn --cwd signalMarkup start"
   }
 }

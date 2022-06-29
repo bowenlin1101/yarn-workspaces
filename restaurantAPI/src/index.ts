@@ -6,7 +6,6 @@ import { rejects } from 'assert';
 import bodyParser, { json } from 'body-parser';
 import * as _ from 'lodash';
 
-
 const app: Express = express();
 var jsonParser = bodyParser.json()
 
@@ -28,6 +27,7 @@ const initDishDb = () => {
     })
   })
 }
+
 //Initialize restaurants
 const initRestaurantDb = () => {
   return Promise.resolve(new Database('/tmp/database.db'))
