@@ -1,8 +1,9 @@
 import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
-import { Database } from 'sqlite3';
+// import dotenv from 'dotenv';
+// import { Database } from 'sqlite3';
+import {Database} from 'sqlite3'
 import { promisify } from 'util';
-import { rejects } from 'assert';
+// import { rejects } from 'assert';
 import bodyParser, { json } from 'body-parser';
 import * as _ from 'lodash';
 
@@ -30,7 +31,7 @@ const initDishDb = () => {
 
 //Initialize restaurants
 const initRestaurantDb = () => {
-  return Promise.resolve(new Database('/tmp/database.db'))
+  return Promise.resolve(new Database('SQLDatabase'))
     .then((db) => {
       return new Promise<Database>((resolve, reject) => {
         db.serialize(() => {
@@ -40,18 +41,20 @@ const initRestaurantDb = () => {
     })
     .then((db) => {
       return new Promise<Database>((resolve, reject) => {
-        db.run('CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT, description TEXT, cuisine TEXT, website TEXT;', (error) => {
-          resolve(db);
+        db.run('CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT, description TEXT, cuisine TEXT, website TEXT);', (error) => {
+          if (error) reject(error)
+          else resolve(db);
         })
       })
     })
 };
 
+
 //GET Restaurants
 app.get('/restaurants', (request, response) => {
   initRestaurantDb()
   .then((db) => {
-      new Promise<Object[]>((resolve, reject) => {
+      return new Promise<Object[]>((resolve, reject) => {
         db.all('SELECT * FROM restaurants;', (error, rows) => {
           if (error) reject(error);
           else resolve(rows);
@@ -162,8 +165,9 @@ app.post(`/restaurants`, jsonParser, (request, response) => {
   initRestaurantDb()
   .then((db) => {
     new Promise(() => {
-     db.run(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website), (error) => {
-      if (error) response.send("error")
+      console.log(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website))
+      db.run(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website), (error) => {
+      if (error) response.send(error)
       else response.send("Restaurant created")
      })
     })
@@ -215,21 +219,21 @@ function createRestaurantInput(name:string, description:string, cuisine:string, 
   var insert = `INSERT INTO restaurants (name`
   var values = "VALUES ("
   if (name){
-    values += `'${name}'`
+    values += `'${name.replace(`'`, `''`)}'`
   } else {
     return undefined
   }
   if (description){
     insert += `, description`
-    values += `, '${description}'`
+    values += `, '${description.replace(`'`, `''`)}'`
   }
   if (cuisine){
     insert += `, cuisine`
-    values += `, '${cuisine}'`
+    values += `, '${cuisine.replace(`'`, `''`)}'`
   }
   if (website){
     insert += ', website'
-    values += `, '${website}'`
+    values += `, '${website.replace(`'`, `''`)}'`
   }
   insert += ') '
   values += ');'
@@ -240,13 +244,13 @@ function createDishInput(restaurantId: number, name:string, description:string, 
   var insert = `INSERT INTO dishes (name`
   var values = "VALUES ("
   if (name){
-    values += `'${name}'`
+    values += `'${name.replace(`'`, `''`)}'`
   } else {
     return undefined
   }
   if (description){
     insert += `, description`
-    values += `, '${description}'`
+    values += `, '${description.replace(`'`, `''`)}'`
   }
   if (restaurantId){
     insert += `, restaurantId`
@@ -254,7 +258,7 @@ function createDishInput(restaurantId: number, name:string, description:string, 
   }
   if (imageURL){
     insert += ', imageURL'
-    values += `, '${imageURL}'`
+    values += `, '${imageURL.replace(`'`, `''`)}'`
   }
   insert += ') '
   values += ');'
@@ -297,10 +301,5 @@ function updateDishInput(id:number, restaurantId: number, name:string, descripti
   return update.replace(",", "")
 }
 
-dotenv.config();
 
-const port = 8000;
-
-app.listen(port, () => {
-  console.log(`⚡️[server]: Server is running at https://localhost:${port}`);
-});
+export default app
