@@ -1279,7 +1279,7 @@ eval("\nvar __importDefault = (this && this.__importDefault) || function (mod) {
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
-eval("\nvar __importDefault = (this && this.__importDefault) || function (mod) {\n    return (mod && mod.__esModule) ? mod : { \"default\": mod };\n};\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\n// import express from 'express'\n// import sqlite3 from 'sqlite3'\nvar _1 = __importDefault(__webpack_require__(/*! ./ */ \"./src/index.ts\"));\n// const app = express()\n// const db = sqlite3.Database\nvar port = 8000;\n_1.default.listen(port, function () {\n    console.log(\"\\u26A1\\uFE0F[server]: Server is running at https://localhost:\".concat(port));\n});\n\n\n//# sourceURL=webpack://restaurant-api/./src/server.ts?");
+eval("\nvar __importDefault = (this && this.__importDefault) || function (mod) {\n    return (mod && mod.__esModule) ? mod : { \"default\": mod };\n};\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\n// import express from 'express'\n// import sqlite3 from 'sqlite3'\nvar _1 = __importDefault(__webpack_require__(/*! ./ */ \"./src/index.ts\"));\n// const app = express()\n// const db = sqlite3.Database\nvar port = 8000;\nconsole.log(_1.default);\n_1.default.listen(port, function () {\n    console.log(\"\\u26A1\\uFE0F[server]: Server is running at https://localhost:\".concat(port));\n});\n\n\n//# sourceURL=webpack://restaurant-api/./src/server.ts?");
 
 /***/ }),
 

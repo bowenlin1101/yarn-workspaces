@@ -11,7 +11,7 @@ export default {
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.ts?$/,
         use: ['ts-loader', ],
         exclude: /node_modules/,
       },
@@ -25,5 +25,5 @@ export default {
     path: path.resolve(__dirname, 'dist'),
   },
   mode: 'development',
-  externals: [{sqlite3: 'commonjs sqlite3'}]
+  externals: [{sqlite3: 'commonjs sqlite3'}],
 };
