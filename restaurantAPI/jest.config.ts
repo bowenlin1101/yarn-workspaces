@@ -1,4 +1,6 @@
-import type {Config} from '@jest/types';
+import type { Config } from '@jest/types';
+// import type { InitialOptionsTsJest } from 'ts-jest';
+// import { defaults as tsjPreset } from 'ts-jest/presets';
 
 // Sync object
 
@@ -13,4 +15,5 @@ export default {
     transform: {
 		'^.+\\.(ts|tsx)$': 'ts-jest',
 	},
+
 };
