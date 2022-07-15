@@ -1,9 +1,6 @@
-import express, { Express, Request, Response } from 'express';
-// import dotenv from 'dotenv';
-// import { Database } from 'sqlite3';
+import express, { Express, Request, response, Response } from 'express';
 import {Database} from 'sqlite3'
 import { promisify } from 'util';
-// import { rejects } from 'assert';
 import bodyParser, { json } from 'body-parser';
 import * as _ from 'lodash';
 
@@ -22,7 +19,7 @@ const initDishDb = () => {
   })
   .then((db) => {
     return new Promise<Database>((resolve,reject) => {
-      db.run('CREATE TABLE IF NOT EXISTS dishes (id INTEGER PRIMARY KEY, restaurantId INTEGER, name TEXT, description TEXT, imageURL TEXT);', (error) => {
+      db.run('CREATE TABLE IF NOT EXISTS dishes (id INTEGER PRIMARY KEY, restaurantId INTEGER, name TEXT UNIQUE, description TEXT, imageURL TEXT);', (error) => {
         resolve(db)
       })
     })
@@ -41,14 +38,19 @@ const initRestaurantDb = () => {
     })
     .then((db) => {
       return new Promise<Database>((resolve, reject) => {
-        db.run('CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT, description TEXT, cuisine TEXT, website TEXT);', (error) => {
+        db.run('CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT UNIQUE, description TEXT, cuisine TEXT, website TEXT);', (error) => {
           if (error) reject(error)
           else resolve(db);
         })
       })
     })
 };
-
+//RESET Database
+app.delete('/reset', (request, response) => {
+  deleteDb(() => {
+    response.send("Table Reset")
+  });
+});
 
 //GET Restaurants
 app.get('/restaurants', (request, response) => {
@@ -61,7 +63,7 @@ app.get('/restaurants', (request, response) => {
         });
       })
     .then((results) => {
-      response.send(results)
+      response.send({results: results})
     })
   });
 })
@@ -72,12 +74,9 @@ app.get('/dishes', (request,response) => {
   .then((db) => {
     new Promise((resolve, reject) => {
       db.all('SELECT * from dishes;', (error, rows) => {
-        resolve(rows)
+        response.send({results:rows})
       })
     })
-  })
-  .then((rows) => {
-    response.send(rows)
   })
 })
 
@@ -87,7 +86,7 @@ app.get('/restaurants/:restaurantId', (request, response) => {
   .then((db) => {
     return new Promise<any[]>((resolve, reject)=>{
       db.all(`SELECT * FROM restaurants where id = ${request.params.restaurantId};`, (error, rows) => {
-        response.send(rows)
+        response.send({results:rows})
       })
     })
   })
@@ -99,7 +98,7 @@ app.get('/restaurants/:restaurantId/dishes', (request, response)=> {
   .then((db) => {
     return new Promise<any[]>((resolve, reject) => {
       db.all(`SELECT * FROM dishes WHERE restaurantId = ${request.params.restaurantId};`, (error, rows) => {
-        response.send(rows)
+        response.send({results:rows})
       })
     })
   })
@@ -110,8 +109,46 @@ app.get('/restaurants/:restaurantId/dishes/:dishId', (request, response)=> {
   initDishDb()
   .then((db) => {
     return new Promise<any[]>((resolve, reject) => {
-      db.all(`SELECT * FROM dishes WHERE restaurantId = ${request.params.restaurantId} AND dishId = ${request.params.dishId};`, (error, rows) => {
-        response.send(rows)
+      db.all(`SELECT * FROM dishes WHERE restaurantId = ${request.params.restaurantId} AND id = ${request.params.dishId};`, (error, rows) => {
+        if (error) response.send({results: "SyntaxError"})
+        else response.send({results:rows})
+      })
+    })
+  })
+})
+
+
+
+// ADD restaurant
+app.post(`/restaurants`, jsonParser, (request, response) => {
+  initRestaurantDb()
+  .then((db) => {
+    new Promise((resolve, reject) => {
+      db.run(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website), (error) => {
+      if (error) response.send({results: "NonUniqueError"});
+      else return new Promise(() => {
+        db.all("SELECT * FROM restaurants", (error, rows) => {
+          if (error) response.send({results: "SyntaxError"});
+          else response.send({results:rows});
+        })
+      })
+     })
+    })
+  })
+})
+//ADD dish
+app.post('/restaurants/:restaurantId/dishes',jsonParser, (request, response) => {
+  initDishDb()
+  .then((db) => {
+    new Promise(() => {
+      db.run(createDishInput(request.body.restaurantId ? parseInt(request.body.restaurantId) : parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.imageURL), (error) => {
+        if (error) response.send({results: "NonUniqueError"})
+        else return new Promise(()=> {
+          db.all("SELECT * FROM dishes", (error, rows) => {
+            if (error) response.send({results: "SyntaxError"})
+            else response.send({results:rows})
+          })
+        })
       })
     })
   })
@@ -122,25 +159,54 @@ app.delete('/restaurants/:restaurantId', (request, response) => {
   initRestaurantDb()
   .then((db) => {
     new Promise((resolve, reject) => {
-      // console.log(`DELETE FROM restaurants WHERE id = ${request.params.restaurantId};`)
-      db.run(`DELETE FROM restaurants WHERE id = ${request.params.restaurantId};`, (error) => {
-        if (error) response.send("error")
-        else response.send("restaurant and containing dishes deleted")
-        resolve(null)
+      db.all(`SELECT * FROM restaurants WHERE id = ${request.params.restaurantId};`, (err, rows) => {
+        if (err) {
+          response.send({results:"SyntaxError1"});
+        }
+        else if (typeof(rows) == 'object' && rows.length == 0){
+          response.send({results: "EmptyIndexError"})
+        }
+        else {
+            return new Promise(() => {
+            db.run(`DELETE FROM restaurants WHERE id = ${request.params.restaurantId};`, (error) => {
+              if (error) response.send({results: "SyntaxError2"})
+              else return new Promise(() => {
+                initDishDb()
+                .then((db) => {
+                  new Promise(() => {
+                    db.run(`DELETE FROM dishes WHERE restaurantId = ${request.params.restaurantId};`, (error) => {
+                      if (error) response.send({results:"SyntaxError3"})
+                      else 
+                      return new Promise(() => {
+                        initRestaurantDb()
+                        .then((db) => {
+                          new Promise(() => {
+                            db.all("SELECT * FROM restaurants", (error, restaurants) => {
+                              if (error) response.send("SyntaxError4")
+                              else return new Promise(() => {
+                                initDishDb()
+                                .then((db) => {
+                                  db.all("SELECT * FROM dishes", (error, dishes) => {
+                                    if (error) response.send("SyntaxError5")
+                                    else response.send({results: [restaurants,dishes]})
+                                  })
+                                })
+                              })
+                            })
+                          })
+                        })
+                      })
+                    })
+                  })
+                  .then(() => {
+                    db.close()
+                  })
+                })
+              })
+            })
+          })
+        }
       })
-    })
-  })
-
-  initDishDb()
-  .then((db) => {
-    new Promise((resolve, reject) => {
-      db.run(`DELETE FROM dishes WHERE restaurantId = ${request.params.restaurantId};`, (error) => {
-        if (error) response.send("error")
-        else response.send("dish deleted")
-      })
-    })
-    .then(() => {
-      db.close()
     })
   })
 })
@@ -150,42 +216,24 @@ app.delete(`/restaurants/:restaurantId/dishes/:dishId`, (request,response) => {
   initDishDb()
   .then ((db) => {
     new Promise((resolve, reject) => {
-      db.run(`DELETE FROM dishes WHERE restaurantId = ${request.params.restaurantId} AND id = ${request.params.dishId};`, (error) => {
-        if (error) response.send("error")
-        else response.send("dish deleted")
-
-        resolve(null)
+      db.all(`SELECT * FROM dishes WHERE restaurantId = ${request.params.restaurantId} AND id = ${request.params.dishId};`, (err, rows) => {
+        if (err) response.send(err)
+        else if (rows.length == 0) response.send({results:"EmptyIndexError"})
+        else return new Promise (() => {
+          db.run(`DELETE FROM dishes WHERE restaurantId = ${request.params.restaurantId} AND id = ${request.params.dishId};`, (error) => {
+            if (error) response.send({results: "SyntaxError"});
+            else return new Promise((resolve, reject) => {
+              db.all("SELECT * FROM dishes", (err, rows) => {
+                response.send({results:rows})
+              })
+            })
+          })
+        })
       })
     })
   })
 })
 
-// ADD restaurant
-app.post(`/restaurants`, jsonParser, (request, response) => {
-  initRestaurantDb()
-  .then((db) => {
-    new Promise(() => {
-      console.log(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website))
-      db.run(createRestaurantInput(request.body.name, request.body.description, request.body.cuisine, request.body.website), (error) => {
-      if (error) response.send(error)
-      else response.send("Restaurant created")
-     })
-    })
-  })
-})
-//ADD dish
-app.post('/restaurants/:restaurantId/dishes',jsonParser, (request, response) => {
-  initDishDb()
-  .then((db) => {
-    // console.log(createDishInput(request.body.restaurantId ? parseInt(request.body.restaurantId) : parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.imageURL))
-    new Promise(() => {
-      db.run(createDishInput(request.body.restaurantId ? parseInt(request.body.restaurantId) : parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.imageURL), (error) => {
-        if (error) response.send('error')
-        else response.send('dish created')
-      })
-    })
-  })
-})
 
 //UPDATE restaurant
 app.put('/restaurants/:restaurantId', jsonParser, (request, response) => {
@@ -194,8 +242,16 @@ app.put('/restaurants/:restaurantId', jsonParser, (request, response) => {
     new Promise(() => {
       // console.log(updateRestaurantInput(parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.cuisine, request.body.website))
       db.run(updateRestaurantInput(parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.cuisine, request.body.website), (error) => {
-        if (error) response.send("error")
-        else response.send("updated")
+        if (error) response.send(error)
+        else return new Promise(()=> {
+          initRestaurantDb()
+          .then((db) => {
+            db.all(`SELECT * FROM restaurants WHERE id = ${request.params.restaurantId};`, (error, rows) => {
+              if (error) response.send({results: error})
+              else response.send({results:rows})
+            })
+          })
+        })
       })
     })
   })
@@ -208,8 +264,13 @@ app.put('/restaurants/:restaurantId/dishes/:dishId', jsonParser, (request, respo
     new Promise(() => {
       // console.log(updateDishInput(parseInt(request.params.dishId), parseInt(request.body.restaurantId), request.body.name, request.body.description, request.body.imageURL))
       db.run(updateDishInput(parseInt(request.params.dishId), request.body.restaurantId ? parseInt(request.body.restaurantId) : parseInt(request.params.restaurantId), request.body.name, request.body.description, request.body.imageURL), (error) => {
-        if (error) response.send("error")
-        else response.send('updated')
+        if (error) response.send(error)
+        else return new Promise(()=> {
+          db.all(`SELECT * FROM dishes WHERE id = ${request.params.dishId};`, (error, rows) => {
+            if (error) response.send({results: error})
+            else response.send({results:rows})
+          })
+        })
       })
     })
   })
@@ -221,7 +282,7 @@ function createRestaurantInput(name:string, description:string, cuisine:string, 
   if (name){
     values += `'${name.replace(`'`, `''`)}'`
   } else {
-    return undefined
+    return "error"
   }
   if (description){
     insert += `, description`
@@ -246,7 +307,7 @@ function createDishInput(restaurantId: number, name:string, description:string, 
   if (name){
     values += `'${name.replace(`'`, `''`)}'`
   } else {
-    return undefined
+    return "error"
   }
   if (description){
     insert += `, description`
@@ -301,5 +362,24 @@ function updateDishInput(id:number, restaurantId: number, name:string, descripti
   return update.replace(",", "")
 }
 
+const deleteDb = (callback:Function) => {
+  initRestaurantDb()
+  .then((db) => {
+    return new Promise<Database> ((resolve, reject) => {
+      db.run('DROP TABLE IF EXISTS restaurants', (error) => {
+        if (error) response.send("SyntaxError")
+        else return new Promise(() => {
+          initDishDb()
+          .then((db) => {
+            db.run('DROP TABLE IF EXISTS dishes', (error) => {
+              if (error) response.send("SyntaxError")
+              else callback()
+            })
+          })
+        })
+      });
+    })
+  })
+}
 
 export default app

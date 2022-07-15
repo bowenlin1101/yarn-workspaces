@@ -10,5 +10,7 @@ export default {
           isolatedModules: true,
         },
     },
-    transform:{}
-  };
+    transform: {
+		'^.+\\.(ts|tsx)$': 'ts-jest',
+	},
+};
